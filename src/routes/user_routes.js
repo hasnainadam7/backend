@@ -11,6 +11,7 @@ import {
   updateCurrentUser,
   updateCover,
   updateAvatar,
+  getAllUsers
 } from "../controllers/user_controller.js";
 
 //middlewares
@@ -34,6 +35,7 @@ router.route("/refresh-token").post(refreshAccessToken);
 router.route("/change-password").post(isUserAuthorized, changePassword);
 router.route("/fetch-current-user").post(isUserAuthorized, getCurrentUser);
 router.route("/update-user").post(isUserAuthorized, updateCurrentUser);
+router.route("/get-all-user").post(isUserAuthorized, getAllUsers);
 
 router
   .route("/update-avatar")

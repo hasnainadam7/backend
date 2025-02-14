@@ -44,7 +44,7 @@ const registerUser = asyncHandlerPromises(async (req, res) => {
     CoverImage: coverImageCloudinaryPath || "",
   });
 
-  const fetchedUser = await getUser(newUser.Email);
+  const fetchedUser = await getUser(newUser._id);
 
   if (!fetchedUser)
     throw new apiError(500, "Error occured while saving new user");
@@ -53,19 +53,12 @@ const registerUser = asyncHandlerPromises(async (req, res) => {
     .json(new ApiResponses(200, fetchedUser, "User registered successfully"));
 });
 
-const getUser = async (Email) => {
+const getUser = async (id) => {
   try {
-    // console.log(Email ,id)
-    // if (!Email && !id) throw new apiError(400, "Email or ID is required");
-
-    // const query = Email ? : { _id: id }; // Email ho to usse, warna id se find karo
-
-    const user = await User.findOne({ Email }).select(
+    const user = await User.findOne({ _id: id }).select(
       "-Password -RefreshToken"
     );
-
     if (!user) throw new apiError(404, "User not found");
-
     return user;
   } catch (error) {
     throw new apiError(401, `${error.message || "Invalid Error"}`);
@@ -75,11 +68,11 @@ const getUser = async (Email) => {
 const generateAccessTokenAndRefreshToken = async (userID) => {
   try {
     const fetchedUser = await User.findById(userID);
-    const refreshToken = await fetchedUser.generateRefreshToken();
+    const dbRefreshToken = await fetchedUser.generateRefreshToken();
     const accessToken = await fetchedUser.generateAccessToken();
-    fetchedUser.RefreshToken = refreshToken;
+    fetchedUser.RefreshToken = dbRefreshToken;
     await fetchedUser.save({ validateBeforeSave: false });
-    return { accessToken, refreshToken };
+    return { accessToken, dbRefreshToken };
   } catch (error) {
     throw new apiError(500, "Error occured while generating tokens");
   }
@@ -87,7 +80,7 @@ const generateAccessTokenAndRefreshToken = async (userID) => {
 
 const loginUser = asyncHandlerPromises(async (req, res) => {
   const { Email, Password } = req.body;
-  console.log(req.body);
+
   if (!Email || !Password) {
     throw new apiError(400, "Please fill all the fields");
   }
@@ -98,21 +91,21 @@ const loginUser = asyncHandlerPromises(async (req, res) => {
   const checkPassword = await user.comparePassword(Password);
   if (checkPassword) throw new apiError(401, "Invalid Credentials");
 
-  const { accessToken, refreshToken } =
+  const { accessToken, dbRefreshToken } =
     await generateAccessTokenAndRefreshToken(user._id);
 
-  const fetchedUser = await getUser(user.Email);
+  const fetchedUser = await getUser(user._id);
   if (!fetchedUser)
     throw new apiError(500, "Error occured while fetching user");
 
   return res
     .status(200)
     .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
+    .cookie("refreshToken", dbRefreshToken, options)
     .json(
       new ApiResponses(
         200,
-        { fetchedUser, accessToken, refreshToken },
+        { fetchedUser, accessToken, dbRefreshToken },
         "Login success"
       )
     );
@@ -151,19 +144,19 @@ const refreshAccessToken = asyncHandlerPromises(async (req, res) => {
   //database use token ki id k behlaf pr data lia
   //us id ka refresh token r 1 wala token ko match kia
   //agr match hogya to refresh kr dia
+
   try {
- 
-    const { refreshToken } = req.body || req.cookies ;
- 
+    const { refreshToken } = req.body || req.cookies;
+    //but yaha pr maera authorization null aarha hai q
 
     if (refreshToken == null) throw new apiError(401, "Unauthorized Request");
 
     // Token verify karna
     const decodedToken = jwt.verify(
       refreshToken,
-      process.env.ACCESS_TOKEN_SECRET
+      process.env.REFRESH_TOKEN_SECRET
     );
-    console.log(decodedToken);
+
     if (!decodedToken) throw new apiError(401, "Token Expired");
 
     const newToken = await User.findById(decodedToken._id).select(
@@ -176,21 +169,21 @@ const refreshAccessToken = asyncHandlerPromises(async (req, res) => {
     //   throw new apiError(401, "Invalid refresh token");
 
     const { accessToken, dbRefreshToken } =
-      await generateAccessTokenAndRefreshToken(dbRefreshToken._id);
+      await generateAccessTokenAndRefreshToken(newToken._id);
 
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", refreshToken, options)
+      .cookie("refreshToken", dbRefreshToken, options)
       .json(
         new ApiResponses(
           200,
-          { accessToken, refreshToken },
+          { accessToken, dbRefreshToken },
           "Access token refreshed successfully"
         )
       );
   } catch (error) {
-    throw new apiError(401, `${error.message || "Invalid Error"}`);
+    throw new apiError(401, `${("Eroro ", error.message || "Invalid Error")}`);
   }
 });
 
@@ -222,8 +215,6 @@ const changePassword = asyncHandlerPromises(async (req, res) => {
 });
 
 const getCurrentUser = asyncHandlerPromises((req, res) => {
-  console.log(req.body.user);
-
   return res
     .status(200)
     .json(
@@ -422,6 +413,13 @@ const getWatchHistory = asyncHandlerPromises(async (req, res) => {
     );
 });
 
+const getAllUsers = asyncHandlerPromises(async () => {
+  const users = await User.find({}, "Username Fullname Avatar");
+  res
+    .status(200)
+    .json(new ApiResponses(200, users, "All users fetched"));
+});
+
 export {
   registerUser,
   loginUser,
@@ -435,4 +433,5 @@ export {
   updateCover,
   getSubcribers,
   getWatchHistory,
+  getAllUsers
 };

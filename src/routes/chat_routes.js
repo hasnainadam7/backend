@@ -9,7 +9,7 @@ import {
 } from "../controllers/chat_controller.js";
 const router = Router();
 
-router.route("/get-all-group-chats").get(isUserAuthorized, getChatGroups);
+router.route("/get-all-group-chats").post(isUserAuthorized, getChatGroups);
 
 router.route("/create-chat").post(
   isUserAuthorized,
@@ -18,6 +18,12 @@ router.route("/create-chat").post(
 );
 
 router.route("/fetch-chat-messages").get(
+  isUserAuthorized,
+  // upload.fields([{ name: "groupIconUrl", maxCount: 1 }]),
+  fetchGroupMsgs
+);
+
+router.route("/send-chat-messages").post(
   isUserAuthorized,
   // upload.fields([{ name: "groupIconUrl", maxCount: 1 }]),
   fetchGroupMsgs
