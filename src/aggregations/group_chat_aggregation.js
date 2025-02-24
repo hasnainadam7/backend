@@ -56,8 +56,8 @@ const groupChatAggregations = {
     },
   ],
 
-  getMsgs: (id) => [
-    { $match: { _id: new mongoose.Types.ObjectId(id) } }, 
+  getMsgs: (grpId,userId) => [
+    { $match: { _id: new mongoose.Types.ObjectId(grpId) } }, 
     { $unwind: "$listOfMessages" },
     {
       $match: {
@@ -68,7 +68,7 @@ const groupChatAggregations = {
           {
             $and: [
               {
-                "listOfMessages.sender": new mongoose.Types.ObjectId(user._id),
+                "listOfMessages.sender": new mongoose.Types.ObjectId(userId),
               },
               { "listOfMessages.isDeletedOnlyMe": { $ne: true } },
             ],

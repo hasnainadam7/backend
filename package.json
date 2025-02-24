@@ -4,8 +4,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "nodemon src/index.js",
+    "start": "nodemon -r dotenv/config check.js",
     "dev": "nodemon -r dotenv/config src/index.js",
+
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

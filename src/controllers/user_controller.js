@@ -79,8 +79,9 @@ const generateAccessTokenAndRefreshToken = async (userID) => {
 };
 
 const loginUser = asyncHandlerPromises(async (req, res) => {
-  const { Email, Password } = req.body;
 
+  const { Email, Password } = req.body;
+console.log("I was hit",req.body);
   if (!Email || !Password) {
     throw new apiError(400, "Please fill all the fields");
   }

@@ -1,11 +1,12 @@
 import { Router } from "express";
 
 import { isUserAuthorized } from "../middleware/auth_middleware.js";
-import upload from "../middleware/multer.middleware.js";
+
 import {
   getChatGroups,
   createChatGroup,
-  fetchGroupMsgs
+  fetchGroupMsgs,
+  sendMessage,
 } from "../controllers/chat_controller.js";
 const router = Router();
 
@@ -17,7 +18,7 @@ router.route("/create-chat").post(
   createChatGroup
 );
 
-router.route("/fetch-chat-messages").get(
+router.route("/fetch-chat-messages").post(
   isUserAuthorized,
   // upload.fields([{ name: "groupIconUrl", maxCount: 1 }]),
   fetchGroupMsgs
@@ -26,7 +27,7 @@ router.route("/fetch-chat-messages").get(
 router.route("/send-chat-messages").post(
   isUserAuthorized,
   // upload.fields([{ name: "groupIconUrl", maxCount: 1 }]),
-  fetchGroupMsgs
+  sendMessage
 );
 
 export default router;

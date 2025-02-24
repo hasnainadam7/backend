@@ -11,7 +11,7 @@ import {
   updateCurrentUser,
   updateCover,
   updateAvatar,
-  getAllUsers
+  getAllUsers,
 } from "../controllers/user_controller.js";
 
 //middlewares
@@ -28,6 +28,9 @@ router.route("/register").post(
   registerUser
 );
 router.route("/login").post(loginUser);
+// router.route("/login").post(() => {
+//   console.log("register");
+// });
 
 //Secure Routes
 router.route("/logout").post(isUserAuthorized, logoutUser);

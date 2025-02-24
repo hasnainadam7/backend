@@ -3,11 +3,10 @@ import jwt from "jsonwebtoken";
 import { getUser } from "../controllers/user_controller.js";
 import { apiError } from "../utiles/api_errors.js";
 
-export const isUserAuthorized = asyncHandlerPromises(async (req, _, next) => {
-  const token =req.header("Authorization")?.replace("Bearer ", "")
-  
-    // req.cookies?.accessToken ||  req.header("Authorization")?.replace("Bearer ", "") ||
-    // req.body?.accessToken;
+export const isUserAuthorized = asyncHandlerPromises(async (req, res, next) => {
+  // console.log("dsad");
+  const token =req.header("Authorization")?.replace("Bearer ", "") || req.cookies?.refreshToken || req.cookies?.accessToken ||  req.header("Authorization")?.replace("Bearer ", "") ||
+    req.body?.accessToken ;
 
   // console.log("Token:", token);
   // console.log("Decoded Token:", jwt.decode(token, { complete: true }));

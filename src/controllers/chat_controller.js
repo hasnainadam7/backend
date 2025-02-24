@@ -4,8 +4,10 @@ import { ApiResponses } from "../utiles/api_responses.js";
 import mongoose from "mongoose";
 import { apiError } from "../utiles/api_errors.js";
 import { cloudinaryUploader } from "../utiles/cloudinary.js";
-
-import groupChatAggregations from '../aggregations/group_chat_aggregation.js';
+import groupChatAggregations from "../aggregations/group_chat_aggregation.js";
+import { ioClient } from "../app.js";
+import { emitSocketEvent } from "../socket/socket.js";
+// Import socket instance
 
 const getChatGroups = asyncHandlerPromises(async (req, res) => {
   const id = req.body.user._id;
@@ -42,12 +44,8 @@ const createChatGroup = asyncHandlerPromises(async (req, res) => {
 
     if (!user) throw new apiError(404, "User not found");
 
-
-
     if (!usersIds || !GroupTitle)
       throw new apiError(401, "Bad Request. Please complete all details");
-
-
 
     const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -69,10 +67,11 @@ const createChatGroup = asyncHandlerPromises(async (req, res) => {
     const newGroup = await Group.create({
       GroupUsers,
       GroupTitle,
-      // groupIconUrl,
     });
 
     if (!newGroup) throw new apiError(500, "Server Error. Please Try Again");
+
+    ioClient.emit("groupCreated", newGroup); // Emit event to all users
 
     res
       .status(200)
@@ -95,7 +94,6 @@ const fetchGroupMsgs = asyncHandlerPromises(async (req, res) => {
   }
 
   try {
-
     const isMember = await Group.findOne({
       _id: new mongoose.Types.ObjectId(groupId),
       "GroupUsers.userID": new mongoose.Types.ObjectId(user._id),
@@ -103,8 +101,9 @@ const fetchGroupMsgs = asyncHandlerPromises(async (req, res) => {
 
     if (!isMember) throw new apiError(403, "UnAuthorized Request");
 
-   
-    const groupMessages = await Group.aggregate();
+    const groupMessages = await Group.aggregate(
+      groupChatAggregations.getMsgs(groupId, user._id)
+    );
 
     res
       .status(200)
@@ -120,22 +119,77 @@ const fetchGroupMsgs = asyncHandlerPromises(async (req, res) => {
     throw new apiError(error.status || 500, error.message || "issue is ");
   }
 });
+
 const sendMessage = asyncHandlerPromises(async (req, res) => {
-  const { groupId, user, message } = req.body;
+  const { groupId, user, message } = req.body.requestData;
+
   if (!groupId || !user || !message) throw new apiError(400, "Invalid Request");
   try {
-    const isMember = await Group.findOne({ _id: groupId, "GroupUsers.userID": user._id });
+    const isMember = await Group.findOne({
+      _id: groupId,
+      "GroupUsers.userID": user._id,
+    });
     if (!isMember) throw new apiError(403, "UnAuthorized Request");
 
     const newMessage = { sender: user._id, message, timestamp: new Date() };
-    await Group.updateOne({ _id: groupId }, { $push: { messages: newMessage } });
+    // await Group.updateOne(
+    //   { _id: groupId },
+    //   { $push: { messages: newMessage } }
+    // );
+    const group = await Group.findById(groupId);
+    if (!group) {
+      throw new apiError(404, "Group not found");
+    }
+    await Group.findByIdAndUpdate(
+      groupId,
+      { $push: { listOfMessages: newMessage } },
+      { new: true }
+    );
+    group["GroupUsers"].forEach((member) => {
+      emitSocketEvent(req, groupId, "message", {
+        groupId,
+        toUser: member.userID.toString(),
+        userId: user._id,
+        content: message,
+        timestamp: new Date(),
+      });
+    });
 
-    io.to(groupId).emit("newMessage", newMessage);
-    res.status(200).json(new ApiResponses(200, { newMessage }, "Message sent successfully"));
+    res
+      .status(200)
+      .json(new ApiResponses(200, { newMessage }, "Message sent successfully"));
   } catch (error) {
     console.error("Error sending message:", error);
-    throw new apiError(error.status || 500, error.message || "Message send failed");
+    throw new apiError(
+      error.status || 500,
+      error.message || "Message send failed"
+    );
   }
 });
 
-export { getChatGroups, createChatGroup, fetchGroupMsgs, sendMessage };
+const joinChatGroup = asyncHandlerPromises(async (req, res) => {
+  const { groupId, user } = req.body;
+  if (!groupId || !user) throw new apiError(400, "Invalid Request");
+
+  try {
+    await Group.updateOne(
+      { _id: groupId },
+      { $push: { GroupUsers: { userID: user._id, isAdmin: false } } }
+    );
+    ioClient.to(groupId).emit("join_chat", { userId: user._id, groupId }); // Notify group
+    res
+      .status(200)
+      .json(new ApiResponses(200, {}, "Joined group successfully"));
+  } catch (error) {
+    console.error("Error joining group:", error);
+    throw new apiError(error.status || 500, error.message || "Join failed");
+  }
+});
+
+export {
+  getChatGroups,
+  createChatGroup,
+  fetchGroupMsgs,
+  sendMessage,
+  joinChatGroup,
+};

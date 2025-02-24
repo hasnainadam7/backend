@@ -29,7 +29,7 @@ const GroupSchema = new mongoose.Schema(
         },
         imageUrl: { type: [String], default: [] },
         videoUrl: { type: [String], default: [] },
-        date: { type: Date, required: true },
+        date: { type: Date, default: Date.now() },
         isEdited: { type: Boolean, default: false },
         isDeletedToAll: { type: Boolean, default: false },
         isDeletedOnlyMe: { type: Boolean, default: false },
@@ -38,8 +38,5 @@ const GroupSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-
-
 
 export const Group = mongoose.model("Group", GroupSchema);
